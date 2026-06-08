@@ -110,11 +110,6 @@ netscope-analyzer/
 | Transporte  | TCP (con flags), UDP                                               |
 | Aplicación  | HTTP, HTTPS/TLS, SSH, FTP, DNS, DHCP, NTP, SMTP, POP3, IMAP, RDP, MySQL, Redis, MongoDB… |
 
----
-
-## Roadmap de desarrollo
-
-Ver [ROADMAP.md](ROADMAP.md) para el detalle de fases completadas y próximas.
 
 ---
 
