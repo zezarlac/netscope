@@ -1,4 +1,4 @@
-# 🔍 NetScope — Analizador de Tráfico de Red
+NetScope — Analizador de Tráfico de Red
 
 Herramienta CLI para capturar y analizar tráfico de red en tiempo real,
 inspirada en Wireshark pero con una interfaz mucho más amigable.
