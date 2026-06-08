@@ -20,7 +20,7 @@ inspirada en Wireshark pero con una interfaz mucho más amigable.
 ## Instalación
 
 ```bash
-git clone https://github.com/zezarlac/netscope-analyzer
+git clone https://github.com/zezarlac/netscope.git
 cd netscope-analyzer
 pip install -r requirements.txt
 ```
