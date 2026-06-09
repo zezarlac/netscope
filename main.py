@@ -6,12 +6,47 @@ main.py — Punto de entrada CLI de NetScope
 import os
 import sys
 
-# ── Fix de path ────────────────────────────────────────────────────────────────
-# Con `sudo python main.py`, Python puede dejar sys.path[0] vacío ('') en vez
-# de apuntar al directorio del proyecto, haciendo que `import netscope` falle.
-# Insertamos explícitamente la carpeta donde está main.py para que el paquete
-# `netscope/` siempre sea encontrado sin importar cómo se invoque el script.
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+# ── Fix de path robusto ────────────────────────────────────────────────────────
+# Con `sudo python main.py`, __file__ puede resolverse contra el CWD de root
+# en vez del CWD real, dando una ruta incorrecta. En vez de confiar en un solo
+# mecanismo, probamos tres estrategias y usamos la primera que contenga la
+# carpeta 'netscope/'. Si ninguna la encuentra, salimos con un mensaje claro.
+def _setup_path() -> None:
+    candidates = [
+        # 1. Directorio del script según __file__ (falla si sudo cambia el CWD)
+        os.path.dirname(os.path.abspath(__file__)),
+        # 2. Directorio del argumento invocado (sys.argv[0] → 'main.py' o ruta completa)
+        os.path.dirname(os.path.abspath(sys.argv[0])) if sys.argv else "",
+        # 3. Directorio de trabajo actual (funciona si se ejecuta desde la raíz)
+        os.getcwd(),
+    ]
+
+    for path in candidates:
+        if path and os.path.isdir(os.path.join(path, "netscope")):
+            if path not in sys.path:
+                sys.path.insert(0, path)
+            return   # encontrado ✓
+
+    # Ninguna estrategia funcionó → la carpeta netscope/ no existe donde se espera
+    expected = candidates[0]
+    print(
+        f"\n❌  No se encontró el paquete 'netscope/' en ninguna ruta buscada.\n"
+        f"    Ruta esperada: {expected}/netscope/\n\n"
+        f"    La estructura del proyecto debe ser:\n"
+        f"      {expected}/\n"
+        f"      ├── main.py\n"
+        f"      └── netscope/\n"
+        f"          ├── __init__.py\n"
+        f"          ├── sniffer.py\n"
+        f"          ├── parser.py\n"
+        f"          ├── stats.py\n"
+        f"          ├── display.py\n"
+        f"          └── exporter.py\n",
+        file=sys.stderr,
+    )
+    sys.exit(1)
+
+_setup_path()
 
 import click
 from rich.console import Console
