@@ -109,12 +109,17 @@ class StatsCollector:
         return self.dst_port_counts.most_common(n)
 
     @staticmethod
-    def format_bytes(b: int) -> str:
-        """Convierte bytes a string legible (B/KB/MB/GB)."""
+    def format_bytes(b: float) -> str:
+        """Convierte bytes a string legible (B/KB/MB/GB).
+
+        Bug fix #8: antes usaba //= (división entera), que truncaba el valor.
+        Ejemplo: 1500 bytes → b=1 → '1.0 KB' (incorrecto).
+        Con /= float: 1500 / 1024 = 1.46 → '1.5 KB' (correcto).
+        """
         for unit in ("B", "KB", "MB", "GB"):
-            if b < 1024:
+            if b < 1024.0:
                 return f"{b:.1f} {unit}"
-            b //= 1024
+            b /= 1024.0
         return f"{b:.1f} TB"
 
     # ------------------------------------------------------------------
