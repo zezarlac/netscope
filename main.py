@@ -6,6 +6,13 @@ main.py — Punto de entrada CLI de NetScope
 import os
 import sys
 
+# ── Fix de path ────────────────────────────────────────────────────────────────
+# Con `sudo python main.py`, Python puede dejar sys.path[0] vacío ('') en vez
+# de apuntar al directorio del proyecto, haciendo que `import netscope` falle.
+# Insertamos explícitamente la carpeta donde está main.py para que el paquete
+# `netscope/` siempre sea encontrado sin importar cómo se invoque el script.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 import click
 from rich.console import Console
 from rich.panel import Panel
