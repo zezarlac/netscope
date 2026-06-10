@@ -6,6 +6,8 @@ Controles:  q=salir  p=pausar  c=limpiar  s=guardar CSV
 
 import os
 import sys
+import time
+import datetime
 import threading
 from collections import deque
 from typing import Optional
@@ -47,6 +49,10 @@ class Dashboard:
         self.running: bool = False
         self._lock = threading.Lock()
         self.console = Console(highlight=False, no_color=no_color)
+        # Sistema de notificaciones: mensajes temporales en pantalla
+        self._notify_msg: str = ""
+        self._notify_time: float = 0.0
+        self._notify_error: bool = False
 
     # ------------------------------------------------------------------
     # Teclado
@@ -109,20 +115,36 @@ class Dashboard:
             self.running = False
         elif key in ("p", "P"):
             self.paused = not self.paused
+            if self.paused:
+                self._notify("⏸  Captura PAUSADA — pulsa P para reanudar", error=False)
+            else:
+                self._notify("▶  Captura REANUDADA", error=False)
         elif key in ("c", "C"):
             with self._lock:
                 self.packets.clear()
             self.stats.reset()
+            self._notify("🗑  Lista y estadísticas limpiadas", error=False)
         elif key in ("s", "S"):
             self._quick_save()
+
+    def _notify(self, msg: str, error: bool = False) -> None:
+        """Muestra un mensaje temporal en la barra de estado (dura 4 segundos)."""
+        self._notify_msg = msg
+        self._notify_time = time.time()
+        self._notify_error = error
 
     def _quick_save(self) -> None:
         from .exporter import Exporter
         with self._lock:
             pkts = list(self.packets)
-        # Guardar en /tmp para evitar problemas de permisos con sudo
-        path = "/tmp/netscope_dump.csv"
-        Exporter().to_csv(pkts, path)
+        # Guardar en el directorio actual con timestamp para no sobrescribir
+        ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        path = os.path.join(os.getcwd(), f"netscope_{ts}.csv")
+        try:
+            Exporter().to_csv(pkts, path)
+            self._notify(f"💾  Guardado: {path}  ({len(pkts)} paquetes)", error=False)
+        except Exception as e:
+            self._notify(f"❌  Error al guardar: {e}", error=True)
 
     # ------------------------------------------------------------------
     # Renderizado
@@ -174,12 +196,8 @@ class Dashboard:
 
     def _build_stats_bar(self) -> Panel:
         s = self.stats
-        proto_line = Text()
-        for proto, count in s.top_protocols(6):
-            c = self._color(proto)
-            proto_line.append(f" {proto}", style=f"bold {c}")
-            proto_line.append(f"({count})", style="dim")
 
+        # ── Línea 1: métricas ─────────────────────────────────────────────────
         status = Text()
         status.append("📦 ", style="dim")
         status.append(f"{s.total_packets:,}", style="bold bright_white")
@@ -191,25 +209,49 @@ class Dashboard:
         status.append(f"{s.unique_connections} conn", style="bold green")
         status.append("  │  ⏱ ", style="dim")
         status.append(f"{s.elapsed:.0f}s", style="white")
-        if self.paused:
-            status.append("  │  ⏸ PAUSADO", style="bold red")
         if self.filter_text:
             status.append(f"  │  🔍 {self.filter_text}", style="bold magenta")
 
-        content = Text.assemble(status, "\n", proto_line)
+        # ── Línea 2: distribución de protocolos ───────────────────────────────
+        proto_line = Text()
+        for proto, count in s.top_protocols(6):
+            c = self._color(proto)
+            proto_line.append(f" {proto}", style=f"bold {c}")
+            proto_line.append(f"({count})", style="dim")
+
+        # ── Línea 3 (opcional): notificación temporal ─────────────────────────
+        notif_active = self._notify_msg and (time.time() - self._notify_time) < 4.0
+        if notif_active:
+            color = "bold red" if self._notify_error else "bold bright_green"
+            notif_line = Text(f" {self._notify_msg}", style=color)
+            content = Text.assemble(status, "\n", proto_line, "\n", notif_line)
+        else:
+            content = Text.assemble(status, "\n", proto_line)
+
+        # ── Panel: borde rojo y título diferente cuando está en pausa ─────────
+        if self.paused:
+            title    = "[bold red]⏸  PAUSADO[/bold red]  —  [bold cyan]NetScope[/bold cyan]"
+            border   = "red"
+            subtitle = "[dim]P=reanudar  q=salir  c=limpiar  s=guardar[/dim]"
+        else:
+            title    = "[bold cyan]🔍 NetScope — Analizador de tráfico[/bold cyan]"
+            border   = "cyan"
+            subtitle = "[dim]q=salir  p=pausar  c=limpiar  s=guardar[/dim]"
+
         return Panel(
             content,
-            title="[bold cyan]🔍 NetScope — Analizador de tráfico[/bold cyan]",
-            title_align="left",
-            subtitle="[dim]q=salir  p=pausar  c=limpiar  s=guardar /tmp/netscope_dump.csv[/dim]",
-            subtitle_align="right",
-            border_style="cyan",
+            title=title, title_align="left",
+            subtitle=subtitle, subtitle_align="right",
+            border_style=border,
         )
 
     def _render(self) -> Layout:
+        # El panel crece una línea cuando hay notificación activa
+        notif_active = self._notify_msg and (time.time() - self._notify_time) < 4.0
+        header_size = 6 if notif_active else 5
         layout = Layout()
         layout.split_column(
-            Layout(self._build_stats_bar(),    name="header", size=5),
+            Layout(self._build_stats_bar(),    name="header", size=header_size),
             Layout(self._build_packet_table(), name="body"),
         )
         return layout
