@@ -7,7 +7,7 @@ inspirada en Wireshark pero con una interfaz mucho más amigable.
 
 ## Características
 
-- **Captura en vivo** usando Scapy (AsyncSniffer no-bloqueante)
+- **Captura en vivo** 
 - **Detección de protocolos**: ARP, ICMP, TCP, UDP, DNS, HTTP, HTTPS/TLS, SSH, FTP, DHCP, NTP y más
 - **Dashboard TUI** con Rich: tabla de paquetes, colores por protocolo, estadísticas en tiempo real
 - **Controles de teclado**: pausar, filtrar, guardar snapshot
